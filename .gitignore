@@ -1,0 +1,36 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# VS Code
+.vscode/
+
+# Misc
+*.log
+.DS_Store
+
+# SECURITY: never commit API keys or key files.
+# Keys are entered in the app's Settings screen and stored in the
+# Android Keystore via flutter_secure_storage — never in this repo.
+*.key
+*.pem
+secrets/
+.env
