@@ -3,8 +3,6 @@
 A voice-first Android AI assistant. Say **“Piti”**, speak a command, hear the
 confirmed result.
 
-Day 1 of the 30-day daily build challenge.
-
 ## What it does
 
 ```
