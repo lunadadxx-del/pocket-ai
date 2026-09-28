@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.pocketai.pocket_ai"
-    compileSdk = flutter.compileSdkVersion
+    // compileSdk 37 required by permission_handler_android
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

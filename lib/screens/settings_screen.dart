@@ -21,11 +21,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _orController = TextEditingController();
-  final _dgController = TextEditingController();
   final _pvController = TextEditingController();
 
   bool _orSaved = false;
-  bool _dgSaved = false;
   bool _pvSaved = false;
 
   @override
@@ -36,12 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadFlags() async {
     final or = await widget.keys.getOpenRouterKey();
-    final dg = await widget.keys.getDeepgramKey();
     final pv = await widget.keys.getPicovoiceKey();
     if (!mounted) return;
     setState(() {
       _orSaved = or != null && or.isNotEmpty;
-      _dgSaved = dg != null && dg.isNotEmpty;
       _pvSaved = pv != null && pv.isNotEmpty;
     });
   }
@@ -49,7 +45,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _orController.dispose();
-    _dgController.dispose();
     _pvController.dispose();
     super.dispose();
   }
@@ -72,7 +67,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             _KeyField(
               label: 'OpenRouter API key',
-              hint: 'AI brain (${AppConfig.openRouterModelId})',
+              hint:
+                  'Powers the AI brain (${AppConfig.openRouterModelId}) '
+                  'and voice output (${AppConfig.openRouterTtsModel})',
               controller: _orController,
               saved: _orSaved,
               onSave: () async {
@@ -82,21 +79,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               onClear: () async {
                 await widget.keys.clearOpenRouterKey();
-                await _loadFlags();
-              },
-            ),
-            _KeyField(
-              label: 'Deepgram API key',
-              hint: 'Voice output (Flux TTS)',
-              controller: _dgController,
-              saved: _dgSaved,
-              onSave: () async {
-                await widget.keys.setDeepgramKey(_dgController.text);
-                _dgController.clear();
-                await _loadFlags();
-              },
-              onClear: () async {
-                await widget.keys.clearDeepgramKey();
                 await _loadFlags();
               },
             ),

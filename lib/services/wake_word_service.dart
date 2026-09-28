@@ -169,6 +169,8 @@ class KeywordSpottingFallback implements WakeWordService {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _running = false;
   bool _stopping = false;
+  Completer<void>? _loopDone;
+  Completer<void>? _pendingHeard;
 
   @override
   WakeWordEngine get engine => WakeWordEngine.keywordSpotting;
@@ -198,30 +200,42 @@ class KeywordSpottingFallback implements WakeWordService {
   }
 
   Future<void> _loop() async {
-    while (_running && !_stopping) {
-      final heard = Completer<void>();
-      await _speech.listen(
-        onResult: (result) {
-          final words = result.recognizedWords.toLowerCase();
-          if (words.contains('piti') || words.contains('pity')) {
-            if (!_controller.isClosed) _controller.add(DateTime.now());
-            if (!heard.isCompleted) heard.complete();
-          }
-          if (result.finalResult && !heard.isCompleted) {
-            heard.complete();
-          }
-        },
-        listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 12),
-          pauseFor: const Duration(seconds: 4),
-          partialResults: true,
-          cancelOnError: true,
-        ),
-      );
-      await heard.future.timeout(const Duration(seconds: 15), onTimeout: () {});
-      await _speech.stop();
-      // Brief yield so stop() can take effect between passes.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+    _loopDone = Completer<void>();
+    try {
+      while (_running && !_stopping) {
+        final heard = Completer<void>();
+        _pendingHeard = heard;
+        await _speech.listen(
+          onResult: (result) {
+            final words = result.recognizedWords.toLowerCase();
+            if (words.contains('piti') || words.contains('pity')) {
+              if (!_controller.isClosed) _controller.add(DateTime.now());
+              if (!heard.isCompleted) heard.complete();
+            }
+            if (result.finalResult && !heard.isCompleted) {
+              heard.complete();
+            }
+          },
+          listenOptions: stt.SpeechListenOptions(
+            listenFor: const Duration(seconds: 12),
+            pauseFor: const Duration(seconds: 4),
+            partialResults: true,
+            cancelOnError: true,
+          ),
+        );
+        await heard.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {},
+        );
+        _pendingHeard = null;
+        await _speech.stop();
+        // Brief yield so stop() can take effect between passes.
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+    } finally {
+      _pendingHeard = null;
+      _loopDone?.complete();
+      _loopDone = null;
     }
   }
 
@@ -229,9 +243,21 @@ class KeywordSpottingFallback implements WakeWordService {
   Future<void> stop() async {
     _stopping = true;
     _running = false;
+    // Unblock the loop promptly so the mic is truly free before STT starts.
+    // Without this, stop() returns while the recognizer is still tearing
+    // down and the next listen() fails with "microphone in use".
+    if (_pendingHeard != null && !_pendingHeard!.isCompleted) {
+      _pendingHeard!.complete();
+    }
     try {
       if (_speech.isListening) await _speech.stop();
     } catch (_) {}
+    // Wait for the loop to actually exit (bounded, never hangs the turn).
+    try {
+      await _loopDone?.future.timeout(const Duration(seconds: 3));
+    } on TimeoutException {
+      // Best effort: the loop will exit on its own shortly.
+    }
   }
 
   @override

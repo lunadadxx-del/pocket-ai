@@ -7,13 +7,16 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'openrouter_service.dart' show ApiException;
 
-/// Deepgram Flux TTS over the batch REST endpoint.
+/// Text-to-speech through OpenRouter's audio endpoint.
 ///
-/// Endpoint verified 2026-09-27 UTC from Deepgram docs:
-///   POST https://api.deepgram.com/v2/speak with model and encoding params.
-///   Headers: Authorization: Token DEEPGRAM_KEY, Content-Type: application/json
-///   Body: {"text": "..."}  -> 200 with binary audio, or JSON error.
-/// Errors are surfaced with the real HTTP status and message — never hidden.
+///   POST https://openrouter.ai/api/v1/audio/speech
+///   Body: `{"model": "deepgram/flux-tts:free", "input": text,
+///          "voice": "flux-cole-en"}`
+///   -> 200 with raw MP3 bytes, or a JSON error body.
+///
+/// One OpenRouter key powers both the AI brain and the voice — no separate
+/// TTS provider key is needed. Errors surface the real HTTP status and
+/// message; they are never hidden.
 class TtsService {
   TtsService();
 
@@ -29,11 +32,7 @@ class TtsService {
     void Function()? onPlaybackDone,
   }) async {
     if (_disposed) return;
-    final uri = Uri.parse(
-      '${AppConfig.deepgramTtsUrl}'
-      '?model=${AppConfig.deepgramTtsModel}'
-      '&encoding=${AppConfig.deepgramTtsEncoding}',
-    );
+    final uri = Uri.parse(AppConfig.openRouterTtsUrl);
 
     http.Response resp;
     try {
@@ -41,10 +40,16 @@ class TtsService {
           .post(
             uri,
             headers: {
-              'Authorization': 'Token $apiKey',
+              'Authorization': 'Bearer $apiKey',
               'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://pocketai.app',
+              'X-Title': 'Pocket AI',
             },
-            body: jsonEncode({'text': text}),
+            body: jsonEncode({
+              'model': AppConfig.openRouterTtsModel,
+              'input': text,
+              'voice': AppConfig.openRouterTtsVoice,
+            }),
           )
           .timeout(AppConfig.httpTimeout);
     } on TimeoutException {
@@ -52,15 +57,15 @@ class TtsService {
         feature: 'Voice response',
         stage: 'tts',
         message:
-            'Deepgram TTS request timed out after '
+            'OpenRouter TTS request timed out after '
             '${AppConfig.httpTimeout.inSeconds}s.',
-        likelyCause: 'slow network or Deepgram degradation',
+        likelyCause: 'slow network or OpenRouter degradation',
       );
     } catch (e) {
       throw ApiException(
         feature: 'Voice response',
         stage: 'tts',
-        message: 'Network error calling Deepgram: $e',
+        message: 'Network error calling OpenRouter TTS: $e',
         likelyCause: 'no connectivity or DNS failure',
       );
     }
@@ -70,13 +75,13 @@ class TtsService {
         feature: 'Voice response',
         stage: 'tts',
         httpStatus: resp.statusCode,
-        message: 'Deepgram TTS synthesis failed.',
+        message: 'OpenRouter TTS synthesis failed.',
         bodySnippet: _errorSnippet(resp.bodyBytes),
         likelyCause: resp.statusCode == 401
-            ? 'invalid or missing Deepgram API key — check Settings'
+            ? 'invalid or missing OpenRouter API key — check Settings'
             : resp.statusCode == 429
-            ? 'Deepgram rate limit (too many concurrent requests)'
-            : 'Deepgram service error',
+                  ? 'OpenRouter rate limit (too many requests)'
+                  : 'OpenRouter service error',
       );
     }
     if (resp.bodyBytes.isEmpty) {
@@ -84,7 +89,8 @@ class TtsService {
         feature: 'Voice response',
         stage: 'tts',
         httpStatus: resp.statusCode,
-        message: 'Deepgram returned HTTP ${resp.statusCode} with empty audio.',
+        message:
+            'OpenRouter returned HTTP ${resp.statusCode} with empty audio.',
         likelyCause: 'upstream synthesis produced no audio',
       );
     }
@@ -127,7 +133,10 @@ class TtsService {
   String _errorSnippet(List<int> bodyBytes) {
     try {
       final decoded = jsonDecode(utf8.decode(bodyBytes)) as Map;
-      final msg = decoded['err_msg'] ?? decoded['message'] ?? decoded;
+      final err = decoded['error'];
+      final msg = err is Map
+          ? (err['message'] ?? err)
+          : (decoded['message'] ?? decoded);
       final s = msg.toString().replaceAll(RegExp(r'\s+'), ' ');
       return s.length > 220 ? '${s.substring(0, 220)}…' : s;
     } catch (_) {

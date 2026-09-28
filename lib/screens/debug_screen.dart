@@ -70,9 +70,9 @@ class DebugScreen extends StatelessWidget {
           'No physical device test yet.',
     ),
     _Capability(
-      'Voice reply (Deepgram Flux TTS)',
+      'Voice reply (OpenRouter Flux TTS)',
       '[NOT TESTED]',
-      'Implemented against POST /v2/speak; needs user API key; '
+      'Implemented against POST /v1/audio/speech; needs user API key; '
           'no live call made yet.',
     ),
     _Capability(

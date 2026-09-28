@@ -61,7 +61,7 @@ class _PocketAiAppState extends State<PocketAiApp> {
     if (!hasKeys) {
       _brain.logEvent(
         '[BLOCKED]',
-        'API keys missing. Enter the OpenRouter and Deepgram keys in '
+        'API key missing. Enter the OpenRouter key in '
             'Settings before a full voice turn can run.',
       );
     }

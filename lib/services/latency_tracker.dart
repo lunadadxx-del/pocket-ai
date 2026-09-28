@@ -8,7 +8,7 @@ enum Stage {
   stt, // microphone -> final transcript
   ai, // OpenRouter request -> parsed intent
   action, // Android action execution -> confirmed result
-  tts, // Deepgram request -> audio bytes received
+  tts, // OpenRouter TTS request -> audio bytes received
   playback, // audio playback start -> completion
 }
 

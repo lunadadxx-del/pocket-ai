@@ -203,6 +203,10 @@ class AssistantBrain extends ChangeNotifier {
     } catch (_) {
       // Best effort: a failed stop must not wedge the turn.
     }
+    // Let Android fully release the recognizer before STT grabs the mic.
+    // Skipping this causes "microphone in use" listen failures on some
+    // devices when the wake engine was just torn down.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (mic.owner == MicOwner.wakeWord) {
       mic.releaseWakeWord();
     } else if (mic.owner != MicOwner.idle) {
@@ -467,17 +471,17 @@ class AssistantBrain extends ChangeNotifier {
   Future<void> _speakAndResume(String text, {String? extraNote}) async {
     _lastSpoken = text;
     _setState(AssistantState.speaking);
-    final dgKey = await keys.getDeepgramKey();
-    if (dgKey == null || dgKey.isEmpty) {
-      // TTS key missing: show the text, say so honestly — never pretend
+    final orKey = await keys.getOpenRouterKey();
+    if (orKey == null || orKey.isEmpty) {
+      // Voice key missing: show the text, say so honestly — never pretend
       // the voice response worked.
       logEvent(
         '[ERROR]',
-        'Voice response: Deepgram API key missing — reply shown as text only.',
+        'Voice response: OpenRouter API key missing — reply shown as text only.',
       );
       _setState(
         AssistantState.waitingWakeWord,
-        'Deepgram key missing — reply shown as text.',
+        'OpenRouter key missing — reply shown as text.',
       );
       await _resumeWakeWord();
       return;
@@ -487,7 +491,7 @@ class AssistantBrain extends ChangeNotifier {
       bool playbackStarted = false;
       await tts.speak(
         text,
-        dgKey,
+        orKey,
         onPlaybackStart: () {
           playbackStarted = true;
           latency.stop(Stage.tts);

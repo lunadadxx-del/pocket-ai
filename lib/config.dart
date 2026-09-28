@@ -11,22 +11,23 @@ class AppConfig {
   static const String wakeWordDisplay = '“Piti”';
 
   // --- AI brain (OpenRouter) ---
-  // Model ID verified live on 2026-09-27 UTC via the public
-  // https://openrouter.ai/api/v1/models endpoint (no key required).
-  // Listed name there: "Google: Gemma 4 31B".
+  // Text agent model (free tier; may be rate-limited).
   static const String openRouterBaseUrl = 'https://openrouter.ai/api/v1';
-  static const String openRouterModelId = 'google/gemma-4-31b-it';
-  // Free-tier variant of the same model (may be rate-limited):
-  static const String openRouterModelIdFree = 'google/gemma-4-31b-it:free';
+  static const String openRouterModelId = 'google/gemma-4-31b-it:free';
 
-  // --- Voice (Deepgram Flux TTS) ---
-  // Verified 2026-09-27 UTC from Deepgram docs: Flux TTS voices are served ONLY
-  // on /v2/speak (batch REST). /v1/speak serves Aura voices only.
-  // The `model` query param is REQUIRED on v2. Auth: `Authorization: Token <key>`.
-  // Options go on the query string; the JSON body carries only {"text": ...}.
-  static const String deepgramTtsUrl = 'https://api.deepgram.com/v2/speak';
-  static const String deepgramTtsModel = 'flux-kit-en';
-  static const String deepgramTtsEncoding = 'mp3';
+  // --- Voice output (OpenRouter TTS) ---
+  // Text-to-speech goes through OpenRouter so a single API key powers both
+  // the brain and the voice:
+  //   POST https://openrouter.ai/api/v1/audio/speech
+  //   Headers: Authorization: Bearer <OPENROUTER_KEY>,
+  //            Content-Type: application/json
+  //   Body: {"model": "deepgram/flux-tts:free",
+  //          "input": "<text>", "voice": "flux-cole-en"}
+  //   -> 200 with raw MP3 bytes, or JSON error.
+  static const String openRouterTtsUrl =
+      'https://openrouter.ai/api/v1/audio/speech';
+  static const String openRouterTtsModel = 'deepgram/flux-tts:free';
+  static const String openRouterTtsVoice = 'flux-cole-en';
 
   // --- Platform channels ---
   static const String actionsChannel = 'com.pocketai.pocket_ai/actions';
